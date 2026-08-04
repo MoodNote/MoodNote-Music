@@ -1,6 +1,14 @@
+# -*- coding: utf-8 -*-
+# Job: Rename camelCase, ép dtype đúng, dedup, chọn cột, xuất music.csv/json/parquet
+# Input:  music_enriched.csv
+# Output: music.csv, music.json, music.parquet
+
+import sys, io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 import pandas as pd
 
-df = pd.read_csv("music.csv")
+df = pd.read_csv("music_enriched.csv")
 print(f"Rows ban đầu: {len(df)}")
 
 # Rename cột về camelCase
@@ -14,28 +22,47 @@ RENAME = {
 }
 df = df.rename(columns=RENAME)
 
-# Deduplicate bước 1: theo spotifyId
-if "spotifyId" in df.columns and df["spotifyId"].notna().any():
-    df = df.sort_values("popularity", ascending=False).drop_duplicates(subset="spotifyId")
-    print(f"Sau dedup spotifyId: {len(df)}")
-
-# Deduplicate bước 2: cùng tên + artist
+# Deduplicate: cùng tên + artist
 df = df.drop_duplicates(subset=["trackName", "artists"])
 print(f"Sau dedup name+artists: {len(df)}")
 
+# ── Ép dtype ───────────────────────────────────────────────────────────────
+_TRUE  = {True, "True", "true", "1", 1}
+_FALSE = {False, "False", "false", "0", 0}
+
+def to_bool(v: object) -> bool | pd.NA:
+    if v in _TRUE:
+        return True
+    if v in _FALSE:
+        return False
+    return pd.NA
+
+df["isExplicit"] = df["isExplicit"].apply(to_bool).astype("boolean")
+
+for col in ("popularity", "durationMs", "key"):
+    df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
+
+AUDIO_FEATURES = [
+    "danceability", "energy", "loudness", "speechiness",
+    "acousticness", "instrumentalness", "liveness", "valence", "tempo",
+]
+for col in AUDIO_FEATURES:
+    df[col] = pd.to_numeric(df[col], errors="coerce")
+
 # Chỉ giữ các fields cần thiết
 KEEP = [
-    "trackId", "trackName", "artists", "albumName",
+    "trackId", "trackName", "artists",
     "popularity", "isExplicit", "durationMs",
     "danceability", "energy", "key", "loudness",
     "speechiness", "acousticness", "instrumentalness",
     "liveness", "valence", "tempo", "trackGenre",
-    "lyrics",
-    "mood_party", "mood_work", "mood_relax", "mood_exercise",
-    "mood_running", "mood_yoga", "mood_driving", "mood_social", "mood_morning",
 ]
 KEEP = [c for c in KEEP if c in df.columns]
 df = df[KEEP].reset_index(drop=True)
+
+assert not any(c.startswith("mood_") for c in df.columns)
+assert df["isExplicit"].dtype.name == "boolean"
+assert not df.duplicated(subset=["trackName", "artists"]).any()
 
 # Lưu 3 formats
 df.to_csv("music.csv", index=False, encoding="utf-8-sig")

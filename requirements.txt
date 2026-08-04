@@ -1,0 +1,5 @@
+pandas==3.0.5
+numpy==2.4.3
+datasets==4.8.5
+huggingface_hub==1.26.0
+pyarrow==23.0.1
