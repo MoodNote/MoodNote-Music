@@ -70,9 +70,11 @@ Thêm/bớt nghệ sĩ trực tiếp trong 2 file JSON, không cần sửa code.
 | `instrumentalness` | float | |
 | `liveness` | float | |
 | `valence` | float | Cảm xúc tích cực (0–1) |
-| `tempo` | float | BPM |
+| `tempo` | float | Đã chuẩn hóa [0,1] (BPM thật: `(bpm-60)/140` clip [0,1]; nguồn phụ: giữ nguyên giá trị pre-normalized sẵn), không null |
 | `trackGenre` | string | Thể loại, phân cách bởi `\|` khi có nhiều genre (nullable) |
 
 ### Lưu ý dòng không có `trackId`
 
-Các dòng đến từ nguồn merge phụ (không phải `VictorHu0602`, không có `trackId`) vốn lưu 7 cột `danceability/energy/acousticness/valence/speechiness/instrumentalness/liveness` trên scale 0–100 thay vì 0–1 chuẩn Spotify, đồng thời `tempo`/`loudness` đã bị pre-normalize sẵn về 0–1 (không suy ngược lại được BPM/dB thật). `clean_music.py` tự phát hiện (bất kỳ cột nào trong 7 cột trên > 1) và fix: chia 100 cho 7 cột, null `tempo`/`loudness` ở các dòng này. Đây là lý do một số dòng có `tempo`/`loudness` null dù các cột khác vẫn đầy đủ.
+Các dòng đến từ nguồn merge phụ (không phải `VictorHu0602`, không có `trackId`) vốn lưu 7 cột `danceability/energy/acousticness/valence/speechiness/instrumentalness/liveness` trên scale 0–100 thay vì 0–1 chuẩn Spotify, đồng thời `tempo`/`loudness` đã bị pre-normalize sẵn về 0–1 (không suy ngược lại được BPM/dB thật). `clean_music.py` tự phát hiện (bất kỳ cột nào trong 7 cột trên > 1) và fix: chia 100 cho 7 cột, null `loudness` ở các dòng này (không suy ngược được về dB thật). Đây là lý do một số dòng có `loudness` null dù các cột khác vẫn đầy đủ.
+
+`tempo` luôn ở dạng chuẩn hóa [0,1], không còn null: nhóm có `trackId` (BPM thật) được chuẩn hóa bằng `(bpm-60)/140` clip [0,1] — khớp `normalizeTempo()` bên Backend; nhóm không `trackId` giữ nguyên giá trị pre-normalized sẵn từ nguồn (chấp nhận có thể lệch nhẹ công thức chuẩn, ưu tiên không mất dữ liệu).

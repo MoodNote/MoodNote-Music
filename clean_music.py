@@ -72,15 +72,25 @@ is_percent_scale = df[PERCENT_SCALE_COLS].gt(1).any(axis=1)
 print(f"Dòng dính lỗi scale (nguồn phụ, không trackId): {is_percent_scale.sum()}")
 
 df.loc[is_percent_scale, PERCENT_SCALE_COLS] = df.loc[is_percent_scale, PERCENT_SCALE_COLS] / 100
-df.loc[is_percent_scale, "tempo"] = float("nan")
 df.loc[is_percent_scale, "loudness"] = float("nan")
+
+# tempo: dòng nguồn lỗi đã pre-normalize sẵn [0,1] -> giữ nguyên, không null.
+# Dòng còn lại là BPM thật -> chuẩn hóa về [0,1], khớp normalizeTempo() bên Backend
+# (TEMPO_MIN_BPM=60, TEMPO_RANGE_BPM=140, tức range 60-200 BPM).
+TEMPO_MIN_BPM = 60
+TEMPO_RANGE_BPM = 140
+df.loc[is_percent_scale, "tempo"] = df.loc[is_percent_scale, "tempo"].clip(0, 1)
+df.loc[~is_percent_scale, "tempo"] = (
+    (df.loc[~is_percent_scale, "tempo"] - TEMPO_MIN_BPM) / TEMPO_RANGE_BPM
+).clip(0, 1)
 
 assert not any(c.startswith("mood_") for c in df.columns)
 assert df["isExplicit"].dtype.name == "boolean"
 assert not df.duplicated(subset=["trackName", "artists"]).any()
 assert (df.loc[is_percent_scale, PERCENT_SCALE_COLS] <= 1.0001).all().all()
-assert df.loc[is_percent_scale, "tempo"].isna().all()
 assert df.loc[is_percent_scale, "loudness"].isna().all()
+assert df["tempo"].notna().all()
+assert df["tempo"].between(0, 1).all()
 
 # Lưu 3 formats
 df.to_csv("music.csv", index=False, encoding="utf-8-sig")
