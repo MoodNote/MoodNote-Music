@@ -72,3 +72,7 @@ Thêm/bớt nghệ sĩ trực tiếp trong 2 file JSON, không cần sửa code.
 | `valence` | float | Cảm xúc tích cực (0–1) |
 | `tempo` | float | BPM |
 | `trackGenre` | string | Thể loại, phân cách bởi `\|` khi có nhiều genre (nullable) |
+
+### Lưu ý dòng không có `trackId`
+
+Các dòng đến từ nguồn merge phụ (không phải `VictorHu0602`, không có `trackId`) vốn lưu 7 cột `danceability/energy/acousticness/valence/speechiness/instrumentalness/liveness` trên scale 0–100 thay vì 0–1 chuẩn Spotify, đồng thời `tempo`/`loudness` đã bị pre-normalize sẵn về 0–1 (không suy ngược lại được BPM/dB thật). `clean_music.py` tự phát hiện (bất kỳ cột nào trong 7 cột trên > 1) và fix: chia 100 cho 7 cột, null `tempo`/`loudness` ở các dòng này. Đây là lý do một số dòng có `tempo`/`loudness` null dù các cột khác vẫn đầy đủ.
